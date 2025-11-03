@@ -10,8 +10,8 @@ def stream_users():
         # Connect to the ALX_prodev database
         connection = mysql.connector.connect(
             host="localhost",
-            user="root",       # Change this if your MySQL username is different
-            password="Amir&mysql_1738",       # Add your MySQL password if needed
+            user="root",
+            password="Amir&mysql_1738",
             database="ALX_prodev"
         )
 

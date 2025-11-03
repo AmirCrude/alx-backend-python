@@ -1,4 +1,5 @@
-﻿#!/usr/bin/python3
+﻿
+#!/usr/bin/python3
 import mysql.connector
 
 def stream_users_in_batches(batch_size):
@@ -8,8 +9,8 @@ def stream_users_in_batches(batch_size):
     """
     conn = mysql.connector.connect(
         host="localhost",
-        user="root",        # Replace with your MySQL username
-        password="Amir&mysql_1738",        # Replace with your MySQL password
+        user="root",
+        password="Amir&mysql_1738",
         database="ALX_prodev"
     )
     cursor = conn.cursor(dictionary=True)
@@ -23,6 +24,7 @@ def stream_users_in_batches(batch_size):
 
     cursor.close()
     conn.close()
+    return "All batches processed"
 
 
 def batch_processing(batch_size):
@@ -34,3 +36,5 @@ def batch_processing(batch_size):
         for user in batch:  # 2nd loop
             if user['age'] > 25:  # filter condition
                 print(user)
+
+    return "Batch processing complete" 
