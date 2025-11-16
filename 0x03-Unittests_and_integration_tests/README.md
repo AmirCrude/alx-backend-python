@@ -81,3 +81,57 @@ Key Concepts Learned
 - How to test exceptions using assertRaises.
 - How to parameterize negative test cases.
 - Importance of verifying error-handling pathways in unit tests.
+
+## Task 2 — Mock HTTP Calls for get_json
+
+### Overview
+
+This task focuses on testing the get_json function from utils.py.
+Since get_json performs a real HTTP request using requests.get, the goal is to **mock external API calls** so tests run quickly and deterministically.
+
+### Objective
+
+- Use unittest.mock.patch to replace requests.get with a mock object.
+- Configure the mock to return a custom JSON payload.
+- Verify that get_json(url) returns the expected dictionary.
+- Parameterize the test for different URLs and payloads.
+
+### What I Implemented
+
+I created the class TestGetJson with a parameterized test method test_get_json that:
+
+- Mocks requests.get so no real network call is made.
+- Defines a fake .json() return value for the mocked response.
+- Asserts that get_json(url) returns the correct payload.
+
+The scenarios tested include:
+
+- {"payload": True}
+- {"status": "ok"}
+
+Each test confirms that:
+
+- The result of get_json(url) matches the expected payload.
+- requests.get is called exactly once with the correct URL.
+
+### File Implemented
+
+**test_utils.py**
+
+### Sample Test Output
+
+All tests pass successfully:
+
+```diff
+Ran 7 tests in 0.045s
+
+OK
+
+```
+
+Key Concepts Learned
+
+- How to mock external HTTP requests in unit tests.
+- How to use patch to replace functions during test execution.
+- How to mock method return values on complex objects.
+- Importance of isolating tests from network dependencies.
