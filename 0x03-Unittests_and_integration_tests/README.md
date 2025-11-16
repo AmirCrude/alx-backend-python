@@ -39,3 +39,45 @@ Key Concepts Learned
 - How to use **parameterized tests** in Python.
 - How to structure a clean unittest test case.
 - How to test functions that operate on nested data structures.
+
+## Task 1 — Parameterize a Unit Test (Exception Cases)
+
+### Overview
+
+This task extends testing for **access_nested_map** by checking that the function raises a KeyError when attempting to access a missing key in a nested dictionary.
+
+### Objective
+
+- Write a parameterized unit test that verifies access_nested_map raises KeyError for invalid paths.
+- Use assertRaises to confirm the exception is triggered.
+- Ensure the test uses @parameterized.expand for multiple exception scenarios.
+
+### What I Implemented
+
+I created a new test method, test_access_nested_map_exception, inside the TestAccessNestedMap class.
+Using parameterized.expand, I tested cases where:
+
+- {} with path ("a",) → raises KeyError
+- {"a": 1} with path ("a", "b") → raises KeyError
+
+The test uses assertRaises(KeyError) and follows the 2-line body requirement.
+
+### File Implemented
+
+**test_utils.py**
+
+### Sample Test Output
+
+All tests pass successfully:
+
+```diff
+Ran 5 tests in 0.002s
+OK
+
+```
+
+Key Concepts Learned
+
+- How to test exceptions using assertRaises.
+- How to parameterize negative test cases.
+- Importance of verifying error-handling pathways in unit tests.
