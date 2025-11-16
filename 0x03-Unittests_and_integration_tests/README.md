@@ -135,3 +135,60 @@ Key Concepts Learned
 - How to use patch to replace functions during test execution.
 - How to mock method return values on complex objects.
 - Importance of isolating tests from network dependencies.
+
+## Task 3 — Test memoize Decorator
+
+### Overview
+
+This task tests the custom memoize decorator found in utils.py.
+The decorator is designed to cache the result of a method so it only executes once, even if accessed multiple times.
+
+### Objective
+
+- Verify that a method wrapped with @memoize is called only once, even when accessed repeatedly.
+- Use unittest.mock.patch to track how many times the original method is executed.
+- Confirm that the returned values remain correct and consistent across multiple calls.
+
+### What I Implemented
+
+I created a test class TestMemoize and defined a small sample class inside the test:
+
+```python
+    class TestClass:
+    def a_method(self):
+        return 42
+
+    @memoize
+    def a_property(self):
+        return self.a_method()
+```
+
+Then:
+
+- Patched TestClass.a_method to monitor how many times it is invoked.
+- Accessed a_property twice.
+- Asserted:
+  - The return value is correct.
+  - a_method was called exactly once, proving memoization works.
+
+### File Implemented
+
+**test_utils.py**
+
+### Sample Test Output
+
+All tests pass successfully:
+
+```diff
+Ran 8 tests in 0.015s
+
+OK
+
+```
+
+Key Concepts Learned
+
+- How memoization improves performance by avoiding repeated computation.
+- How to test decorators by mocking the wrapped function.
+- How to track call counts using mock.patch.object.
+- Proper structure of property-style memoized methods.
