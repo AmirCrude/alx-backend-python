@@ -28,7 +28,6 @@ class TestAccessNestedMap(unittest.TestCase):
         with self.assertRaises(KeyError) as cm:
             access_nested_map(nested_map, path)
         self.assertEqual(str(cm.exception), f"'{expected_key}'")
-        
 
 class TestGetJson(unittest.TestCase):
     """Test class for get_json"""
@@ -49,7 +48,6 @@ class TestGetJson(unittest.TestCase):
 
         # Call the function we're testing
         result = get_json(test_url)
-        
         # Verify requests.get was called exactly once with the test_url
         mock_get.assert_called_once_with(test_url)
         # Verify the result matches our expected payload
@@ -73,17 +71,13 @@ class TestMemoize(unittest.TestCase):
         with patch.object(TestClass, 'a_method') as mock_method:
             # Set up the mock to return 42
             mock_method.return_value = 42
-            
             # Create an instance of our test class
             test_instance = TestClass()
-            
             # Call the memoized property twice
             result1 = test_instance.a_property
             result2 = test_instance.a_property
-            
             # Verify both calls return the expected value
             self.assertEqual(result1, 42)
             self.assertEqual(result2, 42)
-            
             # Verify a_method was called only once (due to memoization)
             mock_method.assert_called_once()
