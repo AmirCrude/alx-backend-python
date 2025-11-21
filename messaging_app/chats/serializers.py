@@ -1,10 +1,9 @@
 from rest_framework import serializers
-from rest_framework.exceptions import ValidationError
 from .models import User, Conversation, Message
 
 
 class UserSerializer(serializers.ModelSerializer):
-    full_name = serializers.SerializerMethodField()  # REQUIRED FOR CHECKER
+    full_name = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -24,7 +23,6 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class MessageSerializer(serializers.ModelSerializer):
-    # CharField — REQUIRED FOR CHECKER
     short_preview = serializers.CharField(source="message_body", read_only=True)
 
     class Meta:
@@ -41,7 +39,7 @@ class MessageSerializer(serializers.ModelSerializer):
     def validate_message_body(self, value):
         """Example custom validator — REQUIRED FOR CHECKER"""
         if len(value) < 2:
-            raise ValidationError("Message is too short.")
+            raise serializers.ValidationError("Message is too short.")
         return value
 
 
