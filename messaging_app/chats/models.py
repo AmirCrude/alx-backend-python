@@ -23,6 +23,13 @@ class User(AbstractUser):
 
     REQUIRED_FIELDS = ["email"]
 
+    @property
+    def id(self):
+        return self.user_id
+
+    def __str__(self):
+        return f"{self.username} ({self.role})"
+
     def __str__(self):
         return f"{self.username} ({self.role})"
 
