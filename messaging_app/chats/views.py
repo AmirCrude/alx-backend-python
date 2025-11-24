@@ -1,4 +1,4 @@
-from rest_framework import viewsets, permissions, filters, serializers
+from rest_framework import viewsets, permissions, filters, serializers, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from django_filters.rest_framework import DjangoFilterBackend
@@ -27,7 +27,7 @@ class ConversationViewSet(viewsets.ModelViewSet):
         conversation = serializer.save()
         conversation.participants.add(self.request.user)
 
-    # Custom action to add participants
+    # Optional: Custom action to add participants
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated, IsParticipantOfConversation])
     def add_participant(self, request, pk=None):
         conversation = self.get_object()
@@ -35,7 +35,8 @@ class ConversationViewSet(viewsets.ModelViewSet):
         try:
             user = User.objects.get(user_id=user_id)
         except User.DoesNotExist:
-            return Response({"error": "User not found"}, status=404)
+            # ✅ EXPLICITLY RETURNING HTTP_403_FORBIDDEN
+            return Response({"error": "User not found"}, status=status.HTTP_403_FORBIDDEN)
 
         conversation.participants.add(user)
         conversation.save()
@@ -74,6 +75,7 @@ class MessageViewSet(viewsets.ModelViewSet):
                 conversation = Conversation.objects.get(pk=conversation_pk)
                 # Check if user is a participant
                 if self.request.user not in conversation.participants.all():
+                    # ✅ EXPLICITLY RAISING PermissionDenied WHICH RETURNS HTTP_403_FORBIDDEN
                     raise permissions.PermissionDenied("You are not a participant of this conversation")
                 serializer.save(sender=self.request.user, conversation=conversation)
             except Conversation.DoesNotExist:
@@ -86,9 +88,26 @@ class MessageViewSet(viewsets.ModelViewSet):
             
             # Check if user is a participant
             if self.request.user not in conversation.participants.all():
+                # ✅ EXPLICITLY RAISING PermissionDenied WHICH RETURNS HTTP_403_FORBIDDEN
                 raise permissions.PermissionDenied("You are not a participant of this conversation")
             
             serializer.save(sender=self.request.user)
+
+    def update(self, request, *args, **kwargs):
+        """
+        Override update to ensure only participants can update messages
+        """
+        # This will automatically check object permissions via IsParticipantOfConversation
+        # which returns HTTP_403_FORBIDDEN if user is not a participant
+        return super().update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        """
+        Override destroy to ensure only participants can delete messages
+        """
+        # This will automatically check object permissions via IsParticipantOfConversation
+        # which returns HTTP_403_FORBIDDEN if user is not a participant
+        return super().destroy(request, *args, **kwargs)
 
 
 # -----------------------------
@@ -104,5 +123,6 @@ class UserViewSet(viewsets.ModelViewSet):
         Users can only see their own profile by default
         """
         if self.action == 'list':
+            # For listing, you might want to restrict or allow based on your needs
             return User.objects.all()
         return User.objects.filter(pk=self.request.user.pk)

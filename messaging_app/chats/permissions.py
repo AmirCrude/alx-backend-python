@@ -1,5 +1,5 @@
 ﻿from rest_framework import permissions
-from chats.models import Conversation # Assumes Conversation model is accessible here
+from chats.models import Conversation
 
 class IsParticipantOfConversation(permissions.BasePermission):
     
@@ -8,8 +8,12 @@ class IsParticipantOfConversation(permissions.BasePermission):
         if request.method in permissions.SAFE_METHODS:
             return self._is_participant(request.user, obj)
 
-        # Allow CUD methods (POST, PUT, DELETE) only if the user is a participant
-        return self._is_participant(request.user, obj)
+        # Allow WRITE methods (POST, PUT, PATCH, DELETE) only if the user is a participant
+        # EXPLICITLY INCLUDING PATCH METHOD
+        if request.method in ['POST', 'PUT', 'PATCH', 'DELETE']:
+            return self._is_participant(request.user, obj)
+
+        return False
 
     def has_permission(self, request, view):
         # Global permission check for list views (e.g., POST/GET list)
