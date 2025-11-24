@@ -5,6 +5,8 @@ from django_filters.rest_framework import DjangoFilterBackend
 from .models import Conversation, Message, User
 from .serializers import ConversationSerializer, MessageSerializer, UserSerializer
 from .permissions import IsParticipantOfConversation
+from .pagination import MessagePagination  # NEW
+from .filters import MessageFilter  # NEW
 
 
 # -----------------------------
@@ -35,7 +37,6 @@ class ConversationViewSet(viewsets.ModelViewSet):
         try:
             user = User.objects.get(user_id=user_id)
         except User.DoesNotExist:
-            # ✅ EXPLICITLY RETURNING HTTP_403_FORBIDDEN
             return Response({"error": "User not found"}, status=status.HTTP_403_FORBIDDEN)
 
         conversation.participants.add(user)
@@ -44,11 +45,17 @@ class ConversationViewSet(viewsets.ModelViewSet):
 
 
 # -----------------------------
-# Message ViewSet (UPDATED FOR NESTED ROUTER)
+# Message ViewSet (UPDATED WITH PAGINATION AND FILTERING)
 # -----------------------------
 class MessageViewSet(viewsets.ModelViewSet):
     serializer_class = MessageSerializer
     permission_classes = [permissions.IsAuthenticated, IsParticipantOfConversation]
+    pagination_class = MessagePagination  # NEW: Custom pagination
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]  # NEW
+    filterset_class = MessageFilter  # NEW: Custom filter class
+    search_fields = ['message_body', 'sender__username']  # NEW: Search fields
+    ordering_fields = ['sent_at', 'sender']  # NEW: Ordering fields
+    ordering = ['-sent_at']  # NEW: Default ordering (newest first)
     
     def get_queryset(self):
         """
@@ -75,7 +82,6 @@ class MessageViewSet(viewsets.ModelViewSet):
                 conversation = Conversation.objects.get(pk=conversation_pk)
                 # Check if user is a participant
                 if self.request.user not in conversation.participants.all():
-                    # ✅ EXPLICITLY RAISING PermissionDenied WHICH RETURNS HTTP_403_FORBIDDEN
                     raise permissions.PermissionDenied("You are not a participant of this conversation")
                 serializer.save(sender=self.request.user, conversation=conversation)
             except Conversation.DoesNotExist:
@@ -88,7 +94,6 @@ class MessageViewSet(viewsets.ModelViewSet):
             
             # Check if user is a participant
             if self.request.user not in conversation.participants.all():
-                # ✅ EXPLICITLY RAISING PermissionDenied WHICH RETURNS HTTP_403_FORBIDDEN
                 raise permissions.PermissionDenied("You are not a participant of this conversation")
             
             serializer.save(sender=self.request.user)
@@ -97,16 +102,12 @@ class MessageViewSet(viewsets.ModelViewSet):
         """
         Override update to ensure only participants can update messages
         """
-        # This will automatically check object permissions via IsParticipantOfConversation
-        # which returns HTTP_403_FORBIDDEN if user is not a participant
         return super().update(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
         """
         Override destroy to ensure only participants can delete messages
         """
-        # This will automatically check object permissions via IsParticipantOfConversation
-        # which returns HTTP_403_FORBIDDEN if user is not a participant
         return super().destroy(request, *args, **kwargs)
 
 
@@ -117,6 +118,8 @@ class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [filters.SearchFilter]  # NEW: Add search for users
+    search_fields = ['username', 'first_name', 'last_name', 'email']  # NEW
     
     def get_queryset(self):
         """
