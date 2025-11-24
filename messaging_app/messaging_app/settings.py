@@ -59,18 +59,15 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.IsAuthenticated',
     ),
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        # UPDATED: Use JWT for API authentication
         'rest_framework_simplejwt.authentication.JWTAuthentication',
-        # Removed Basic/Session Auth for API focus, but SessionAuth can be kept for browsable API/Admin
+        'rest_framework.authentication.SessionAuthentication',
     ),
-    # Task 2 requires these settings, including them now for completeness
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20, 
     'DEFAULT_FILTER_BACKENDS': (
         'django_filters.rest_framework.DjangoFilterBackend',
     ),
 }
-
 
 ROOT_URLCONF = 'messaging_app.urls'
 
