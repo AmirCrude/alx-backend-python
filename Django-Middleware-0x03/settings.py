@@ -53,6 +53,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'chats.middleware.RequestLoggingMiddleware',
+    'chats.middleware.RestrictAccessByTimeMiddleware',
 ]
 
 REST_FRAMEWORK = {
@@ -71,7 +72,7 @@ REST_FRAMEWORK = {
     ),
 }
 
-ROOT_URLCONF = 'messaging_app.urls'
+ROOT_URLCONF = 'urls'
 
 TEMPLATES = [
     {
@@ -88,7 +89,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'messaging_app.wsgi.application'
+WSGI_APPLICATION = 'wsgi.application'
 
 AUTH_USER_MODEL = "chats.User"
 
@@ -155,6 +156,6 @@ SIMPLE_JWT = {
     'ALGORITHM': 'HS256',
     'SIGNING_KEY': SECRET_KEY,
     'AUTH_HEADER_TYPES': ('Bearer',),
-    'USER_ID_FIELD': 'user_id',  # Use your custom primary key
-    'USER_ID_CLAIM': 'user_id',  # Use the same in token claims
+    'USER_ID_FIELD': 'user_id',
+    'USER_ID_CLAIM': 'user_id',
 }
