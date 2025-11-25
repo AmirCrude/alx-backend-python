@@ -205,7 +205,7 @@ class RateLimitMiddleware:
             ip = request.META.get('REMOTE_ADDR')
         return ip
     
-class RolePermissionMiddleware:
+class RolepermissionMiddleware:
     def __init__(self, get_response):
         """
         Initialize the middleware
