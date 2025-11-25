@@ -54,6 +54,8 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'chats.middleware.RequestLoggingMiddleware',
     'chats.middleware.RestrictAccessByTimeMiddleware',
+    'chats.middleware.OffensiveLanguageMiddleware',
+    'chats.middleware.RateLimitMiddleware',
 ]
 
 REST_FRAMEWORK = {
@@ -158,4 +160,11 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer',),
     'USER_ID_FIELD': 'user_id',
     'USER_ID_CLAIM': 'user_id',
+}
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-snowflake',
+    }
 }
