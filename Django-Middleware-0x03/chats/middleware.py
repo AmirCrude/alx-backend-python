@@ -4,6 +4,7 @@ from django.http import HttpResponseForbidden, JsonResponse
 from django.core.cache import cache
 import time
 import json
+from django.contrib.auth.models import User
 
 # Set up logging configuration
 logger = logging.getLogger('request_logger')
@@ -203,3 +204,98 @@ class RateLimitMiddleware:
         else:
             ip = request.META.get('REMOTE_ADDR')
         return ip
+    
+class RolePermissionMiddleware:
+    def __init__(self, get_response):
+        """
+        Initialize the middleware
+        """
+        self.get_response = get_response
+        
+        # Define admin-only actions and paths
+        self.admin_actions = ['delete', 'ban', 'moderate', 'clear', 'remove']
+        self.admin_paths = ['/admin/', '/api/admin', '/delete/']  # Added /delete/
+        
+        # Define moderator actions and paths  
+        self.moderator_actions = ['edit', 'warn', 'hide', 'lock']
+        self.moderator_paths = ['/moderate/', '/api/moderate']
+
+    def __call__(self, request):
+        """
+        Check user's role before allowing access to specific actions
+        """
+        # Debug: print request info
+        print(f"RolePermissionMiddleware: Path={request.path}, Method={request.method}, User={getattr(request.user, 'username', 'Anonymous')}")
+        
+        # Check if the request requires special permissions
+        required_role = self.get_required_role(request)
+        
+        if required_role:
+            print(f"Required role: {required_role}")
+            
+            if not request.user.is_authenticated:
+                print("User not authenticated - blocking access")
+                return self.get_permission_denied_response(request, required_role)
+                
+            if not self.has_required_role(request.user, required_role):
+                print(f"User {request.user.username} lacks {required_role} role - blocking access")
+                return self.get_permission_denied_response(request, required_role)
+            else:
+                print(f"User {request.user.username} has required {required_role} role - allowing access")
+        
+        response = self.get_response(request)
+        return response
+
+    def get_required_role(self, request):
+        """
+        Determine what role is required for this request
+        """
+        # Check path-based permissions
+        for admin_path in self.admin_paths:
+            if admin_path in request.path:
+                return 'admin'
+                
+        for moderator_path in self.moderator_paths:
+            if moderator_path in request.path:
+                return 'moderator'
+        
+        # Check specific test endpoints
+        if '/admin-action' in request.path:
+            return 'admin'
+        if '/moderator-action' in request.path:
+            return 'moderator'
+        
+        # Check action-based permissions for POST, PUT, DELETE methods
+        if request.method in ['POST', 'PUT', 'DELETE']:
+            # Check URL path for actions
+            path_lower = request.path.lower()
+            for action in self.admin_actions:
+                if action in path_lower:
+                    return 'admin'
+        
+        return None
+
+    def has_required_role(self, user, required_role):
+        """
+        Check if user has the required role
+        """
+        if required_role == 'admin':
+            return user.is_superuser or user.is_staff
+        elif required_role == 'moderator':
+            # Check if user is in moderators group or is staff/admin
+            return user.is_staff or user.is_superuser or user.groups.filter(name='moderators').exists()
+        
+        return False
+
+    def get_permission_denied_response(self, request, required_role):
+        """
+        Return appropriate permission denied response
+        """
+        if request.content_type == 'application/json' or request.path.startswith('/api/'):
+            return JsonResponse({
+                'error': f'Access denied. {required_role.capitalize()} role required to perform this action.'
+            }, status=403)
+        else:
+            return HttpResponseForbidden(
+                f'Access denied. {required_role.capitalize()} role required to perform this action.'
+            )

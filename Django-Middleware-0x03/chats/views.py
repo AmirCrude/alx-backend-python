@@ -5,8 +5,9 @@ from django_filters.rest_framework import DjangoFilterBackend
 from .models import Conversation, Message, User
 from .serializers import ConversationSerializer, MessageSerializer, UserSerializer
 from .permissions import IsParticipantOfConversation
-from .pagination import MessagePagination  # NEW
-from .filters import MessageFilter  # NEW
+from .pagination import MessagePagination
+from .filters import MessageFilter
+from django.http import JsonResponse
 
 
 # -----------------------------
@@ -129,3 +130,33 @@ class UserViewSet(viewsets.ModelViewSet):
             # For listing, you might want to restrict or allow based on your needs
             return User.objects.all()
         return User.objects.filter(pk=self.request.user.pk)
+    
+# -----------------------------
+# Test Views for Role Permission Middleware
+# -----------------------------
+
+def admin_only_action(request):
+    """Test endpoint that requires admin role"""
+    return JsonResponse({
+        "message": "Admin action successful", 
+        "user": request.user.username,
+        "is_staff": request.user.is_staff,
+        "is_superuser": request.user.is_superuser
+    })
+
+def moderator_only_action(request):
+    """Test endpoint that requires moderator role"""
+    return JsonResponse({
+        "message": "Moderator action successful", 
+        "user": request.user.username,
+        "is_staff": request.user.is_staff,
+        "is_superuser": request.user.is_superuser
+    })
+
+def delete_conversation(request, id):
+    """Test delete action that requires admin role"""
+    return JsonResponse({
+        "message": f"Conversation {id} deleted (simulated)", 
+        "user": request.user.username,
+        "action": "delete"
+    })

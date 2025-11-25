@@ -114,3 +114,10 @@
 2025-11-25 22:01:15,012 - User: Anonymous - Path: /api/messages/
 2025-11-25 22:01:15,146 - User: Anonymous - Path: /api/messages/
 2025-11-25 22:01:15,266 - User: Anonymous - Path: /api/messages/
+2025-11-25 22:15:30,669 - User: Anonymous - Path: /api/admin-action/
+2025-11-25 22:15:55,147 - User: Anonymous - Path: /api/moderator-action/
+2025-11-25 22:16:03,014 - User: Anonymous - Path: /api/conversations/1/delete/
+2025-11-25 22:16:41,390 - User: Anonymous - Path: /api/messages/
+2025-11-25 22:19:59,356 - User: Anonymous - Path: /api/admin-action/
+2025-11-25 22:20:21,731 - User: Anonymous - Path: /api/moderator-action/
+2025-11-25 22:20:29,389 - User: Anonymous - Path: /api/conversations/1/delete/
