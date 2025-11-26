@@ -1,0 +1,45 @@
+﻿<!DOCTYPE html>
+<html>
+  <head>
+    <title>Inbox</title>
+  </head>
+  <body>
+    <h1>Your Inbox</h1>
+
+    <h2>Received Messages</h2>
+    {% if received_messages %}
+    <ul>
+      {% for message in received_messages %}
+      <li>
+        <strong>From {{ message.sender.username }}:</strong>
+        {{ message.content }}
+        <em>({{ message.timestamp }})</em>
+        {% if not message.read %}<strong>NEW</strong>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p>No messages received.</p>
+    {% endif %}
+
+    <h2>Notifications</h2>
+    {% if notifications %}
+    <ul>
+      {% for notification in notifications %}
+      <li>
+        <strong>{{ notification.notification_type }}:</strong>
+        {{ notification.message.content|truncatewords:10 }}
+        <em>({{ notification.created_at }})</em>
+        {% if not notification.read %}<strong>UNREAD</strong>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p>No notifications.</p>
+    {% endif %}
+
+    <br />
+    <a href="{% url 'send_message' %}">Send New Message</a> |
+    <a href="/admin/">Admin Panel</a>
+  </body>
+</html>

@@ -2,5 +2,6 @@
 from . import views
 
 urlpatterns = [
-    # We'll add URL patterns as we build the views
+    path('send/', views.send_message, name='send_message'),
+    path('inbox/', views.inbox, name='inbox'),
 ]
