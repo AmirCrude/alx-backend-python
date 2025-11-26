@@ -8,6 +8,8 @@ class Message(models.Model):
     content = models.TextField()
     timestamp = models.DateTimeField(default=timezone.now)
     read = models.BooleanField(default=False)
+    edited = models.BooleanField(default=False)  # New field to track edits
+    last_edited = models.DateTimeField(null=True, blank=True)  # New field for edit timestamp
     
     class Meta:
         ordering = ['-timestamp']
@@ -27,3 +29,17 @@ class Notification(models.Model):
     
     def __str__(self):
         return f"Notification for {self.user}: {self.message.content[:50]}"
+
+class MessageHistory(models.Model):
+    """Model to store message edit history"""
+    message = models.ForeignKey(Message, on_delete=models.CASCADE, related_name='history')
+    old_content = models.TextField()
+    edited_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    edited_at = models.DateTimeField(default=timezone.now)
+    
+    class Meta:
+        ordering = ['-edited_at']
+        verbose_name_plural = "Message histories"
+    
+    def __str__(self):
+        return f"History for Message {self.message.id} - {self.edited_at}"

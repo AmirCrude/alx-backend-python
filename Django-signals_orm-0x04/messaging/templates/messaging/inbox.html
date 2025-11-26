@@ -15,11 +15,37 @@
         {{ message.content }}
         <em>({{ message.timestamp }})</em>
         {% if not message.read %}<strong>NEW</strong>{% endif %}
+        {% if message.edited %}<strong>EDITED</strong>{% endif %}
+        <br />
+        <small>
+          <a href="{% url 'message_history' message.id %}">View History</a>
+        </small>
       </li>
       {% endfor %}
     </ul>
     {% else %}
     <p>No messages received.</p>
+    {% endif %}
+
+    <h2>Sent Messages</h2>
+    {% if sent_messages %}
+    <ul>
+      {% for message in sent_messages %}
+      <li>
+        <strong>To {{ message.receiver.username }}:</strong>
+        {{ message.content }}
+        <em>({{ message.timestamp }})</em>
+        {% if message.edited %}<strong>EDITED</strong>{% endif %}
+        <br />
+        <small>
+          <a href="{% url 'edit_message' message.id %}">Edit</a> |
+          <a href="{% url 'message_history' message.id %}">View History</a>
+        </small>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p>No messages sent.</p>
     {% endif %}
 
     <h2>Notifications</h2>

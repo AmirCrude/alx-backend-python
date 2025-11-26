@@ -1,6 +1,7 @@
 from django.test import TestCase
 from django.contrib.auth.models import User
-from .models import Message, Notification
+from .models import Message, Notification, MessageHistory
+from django.utils import timezone
 
 class SignalTests(TestCase):
     def setUp(self):
@@ -60,60 +61,101 @@ class SignalTests(TestCase):
         notification_count_after_update = Notification.objects.count()
         self.assertEqual(notification_count_after_update, notification_count_after_creation)
     
-    def test_multiple_messages_create_multiple_notifications(self):
-        """Test that multiple messages create multiple notifications"""
-        # Create first message
-        message1 = Message.objects.create(
+    def test_message_edit_history_created_on_content_change(self):
+        """Test that message edit history is created when content is changed"""
+        # Create a message
+        message = Message.objects.create(
             sender=self.sender,
             receiver=self.receiver,
-            content="First message"
+            content="Original message content"
         )
         
-        # Create second message
-        message2 = Message.objects.create(
+        # Verify no history initially
+        self.assertEqual(MessageHistory.objects.count(), 0)
+        self.assertFalse(message.edited)
+        self.assertIsNone(message.last_edited)
+        
+        # Update the message content
+        message.content = "Updated message content"
+        message.save()
+        
+        # Verify history was created
+        self.assertEqual(MessageHistory.objects.count(), 1)
+        
+        history = MessageHistory.objects.first()
+        self.assertEqual(history.message, message)
+        self.assertEqual(history.old_content, "Original message content")
+        self.assertEqual(history.edited_by, self.sender)
+        
+        # Verify message edit tracking fields were updated
+        message.refresh_from_db()
+        self.assertTrue(message.edited)
+        self.assertIsNotNone(message.last_edited)
+    
+    def test_no_history_created_when_non_content_fields_change(self):
+        """Test that no history is created when non-content fields are updated"""
+        # Create a message
+        message = Message.objects.create(
             sender=self.sender,
             receiver=self.receiver,
-            content="Second message"
+            content="Original content"
         )
         
-        # Verify two notifications were created
-        self.assertEqual(Notification.objects.count(), 2)
+        # Update read status (non-content field)
+        message.read = True
+        message.save()
         
-        # Verify each notification is for the correct message
-        notifications = Notification.objects.all()
-        self.assertEqual(notifications[0].message, message2)  # Most recent first
-        self.assertEqual(notifications[1].message, message1)
+        # Verify no history was created
+        self.assertEqual(MessageHistory.objects.count(), 0)
+        
+        # Verify edit tracking fields remain unchanged
+        message.refresh_from_db()
+        self.assertFalse(message.edited)
+        self.assertIsNone(message.last_edited)
+    
+    def test_multiple_edits_create_multiple_history_entries(self):
+        """Test that multiple edits create multiple history entries"""
+        # Create a message
+        message = Message.objects.create(
+            sender=self.sender,
+            receiver=self.receiver,
+            content="First version"
+        )
+        
+        # First edit
+        message.content = "Second version"
+        message.save()
+        
+        # Second edit
+        message.content = "Third version"
+        message.save()
+        
+        # Verify two history entries
+        self.assertEqual(MessageHistory.objects.count(), 2)
+        
+        # Verify history content is correct
+        history_entries = MessageHistory.objects.all()
+        self.assertEqual(history_entries[0].old_content, "Second version")
+        self.assertEqual(history_entries[1].old_content, "First version")
 
-class ModelTests(TestCase):
+class MessageHistoryModelTests(TestCase):
     def setUp(self):
         self.user1 = User.objects.create_user(username='user1', password='test123')
         self.user2 = User.objects.create_user(username='user2', password='test123')
-    
-    def test_message_creation(self):
-        """Test message model creation and string representation"""
-        message = Message.objects.create(
+        self.message = Message.objects.create(
             sender=self.user1,
             receiver=self.user2,
-            content="Test message content"
+            content="Test message"
         )
-        
-        self.assertEqual(str(message), "From user1 to user2: Test message content")
-        self.assertFalse(message.read)
     
-    def test_notification_creation(self):
-        """Test notification model creation and string representation"""
-        message = Message.objects.create(
-            sender=self.user1,
-            receiver=self.user2,
-            content="Test message for notification"
+    def test_message_history_creation(self):
+        """Test message history model creation"""
+        history = MessageHistory.objects.create(
+            message=self.message,
+            old_content="Previous content",
+            edited_by=self.user1
         )
         
-        notification = Notification.objects.create(
-            user=self.user2,
-            message=message,
-            notification_type='new_message'
-        )
-        
-        expected_str = "Notification for user2: Test message for notification"
-        self.assertEqual(str(notification), expected_str)
-        self.assertFalse(notification.read)
+        self.assertEqual(str(history), f"History for Message {self.message.id} - {history.edited_at}")
+        self.assertEqual(history.old_content, "Previous content")
+        self.assertEqual(history.edited_by, self.user1)

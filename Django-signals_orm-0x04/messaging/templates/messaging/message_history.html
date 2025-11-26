@@ -1,0 +1,56 @@
+﻿<!DOCTYPE html>
+<html>
+  <head>
+    <title>Message Edit History</title>
+    <style>
+      .history-item {
+        border: 1px solid #ddd;
+        padding: 10px;
+        margin: 10px 0;
+        background-color: #f9f9f9;
+      }
+      .current-message {
+        border: 2px solid #4caf50;
+        background-color: #e8f5e8;
+      }
+      .timestamp {
+        color: #666;
+        font-size: 0.9em;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Message Edit History</h1>
+
+    <div class="history-item current-message">
+      <h3>Current Version</h3>
+      <p><strong>Content:</strong> {{ message.content }}</p>
+      <p class="timestamp">
+        <strong>Last edited:</strong>
+        {% if message.last_edited %} {{ message.last_edited }} {% else %} Never
+        edited {% endif %}
+      </p>
+      {% if message.sender == request.user %}
+      <a href="{% url 'edit_message' message.id %}">Edit Message</a>
+      {% endif %}
+    </div>
+
+    <h2>Previous Versions</h2>
+
+    {% if history %} {% for history_item in history %}
+    <div class="history-item">
+      <h3>Version {{ forloop.revcounter }}</h3>
+      <p><strong>Old Content:</strong> {{ history_item.old_content }}</p>
+      <p class="timestamp">
+        <strong>Edited by:</strong> {{ history_item.edited_by.username }}<br />
+        <strong>Edited at:</strong> {{ history_item.edited_at }}
+      </p>
+    </div>
+    {% endfor %} {% else %}
+    <p>No edit history available.</p>
+    {% endif %}
+
+    <br />
+    <a href="{% url 'inbox' %}">Back to Inbox</a>
+  </body>
+</html>
