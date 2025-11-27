@@ -2,6 +2,7 @@ from django.test import TestCase
 from django.contrib.auth.models import User
 from .models import Message, Notification, MessageHistory
 from django.utils import timezone
+from django.urls import reverse
 
 class SignalTests(TestCase):
     def setUp(self):
@@ -138,10 +139,45 @@ class SignalTests(TestCase):
         self.assertEqual(history_entries[0].old_content, "Second version")
         self.assertEqual(history_entries[1].old_content, "First version")
 
+class ModelTests(TestCase):
+    def setUp(self):
+        self.user1 = User.objects.create_user(username='user1', password='test123')
+        self.user2 = User.objects.create_user(username='user2', password='test123')
+    
+    def test_message_creation(self):
+        """Test message model creation and string representation"""
+        message = Message.objects.create(
+            sender=self.user1,
+            receiver=self.user2,
+            content="Test message content"
+        )
+        
+        self.assertEqual(str(message), "From user1 to user2: Test message content")
+        self.assertFalse(message.read)
+    
+    def test_notification_creation(self):
+        """Test notification model creation and string representation"""
+        message = Message.objects.create(
+            sender=self.user1,
+            receiver=self.user2,
+            content="Test message for notification"
+        )
+        
+        notification = Notification.objects.create(
+            user=self.user2,
+            message=message,
+            notification_type='new_message'
+        )
+        
+        expected_str = "Notification for user2: Test message for notification"
+        self.assertEqual(str(notification), expected_str)
+        self.assertFalse(notification.read)
+
 class MessageHistoryModelTests(TestCase):
     def setUp(self):
         self.user1 = User.objects.create_user(username='user1', password='test123')
         self.user2 = User.objects.create_user(username='user2', password='test123')
+        # Create a message for the history tests
         self.message = Message.objects.create(
             sender=self.user1,
             receiver=self.user2,
@@ -159,3 +195,119 @@ class MessageHistoryModelTests(TestCase):
         self.assertEqual(str(history), f"History for Message {self.message.id} - {history.edited_at}")
         self.assertEqual(history.old_content, "Previous content")
         self.assertEqual(history.edited_by, self.user1)
+
+class UserDeletionTests(TestCase):
+    def setUp(self):
+        """Set up test users and data"""
+        self.user1 = User.objects.create_user(
+            username='user1', 
+            password='testpass123'
+        )
+        self.user2 = User.objects.create_user(
+            username='user2', 
+            password='testpass123'
+        )
+        
+        # Store user IDs for later use
+        self.user1_id = self.user1.id
+        self.user2_id = self.user2.id
+
+    def test_user_deletion_orphaned_messages_cleaned_up(self):
+        """Test that orphaned messages are cleaned up when user is deleted"""
+        # Create messages
+        message1 = Message.objects.create(
+            sender=self.user1,
+            receiver=self.user2,
+            content="Test message from user1"
+        )
+        message2 = Message.objects.create(
+            sender=self.user2,
+            receiver=self.user1,
+            content="Test message to user1"
+        )
+        
+        # Count total messages before deletion
+        total_messages_before = Message.objects.count()
+        self.assertEqual(total_messages_before, 2)
+        
+        # Delete user1
+        self.user1.delete()
+        
+        # Check that orphaned messages (with null sender/receiver) are cleaned up
+        total_messages_after = Message.objects.count()
+        # Both messages should be deleted since one had user1 as sender, other as receiver
+        self.assertEqual(total_messages_after, 0)
+
+    def test_user_deletion_cleanup_notifications(self):
+        """Test that user notifications are deleted when user is deleted"""
+        # Create a message first
+        message = Message.objects.create(
+            sender=self.user2,
+            receiver=self.user1,
+            content="Test message for notification"
+        )
+        
+        # Manually create a notification (bypass the automatic signal)
+        # First, delete any auto-created notifications
+        Notification.objects.all().delete()
+        
+        notification = Notification.objects.create(
+            user=self.user1,
+            message=message,
+            notification_type='new_message'
+        )
+        
+        notification_count_before = Notification.objects.filter(user_id=self.user1_id).count()
+        self.assertEqual(notification_count_before, 1)
+        
+        # Delete the user
+        self.user1.delete()
+        
+        # Check that notifications are automatically deleted via CASCADE
+        notification_count_after = Notification.objects.filter(user_id=self.user1_id).count()
+        self.assertEqual(notification_count_after, 0)
+
+    def test_user_deletion_cleanup_message_history(self):
+        """Test that message history with null editors is cleaned up"""
+        # Create a message first
+        message = Message.objects.create(
+            sender=self.user1,
+            receiver=self.user2,
+            content="Test message for history"
+        )
+        
+        # Create message history
+        history = MessageHistory.objects.create(
+            message=message,
+            old_content="Original content",
+            edited_by=self.user1
+        )
+        
+        history_count_before = MessageHistory.objects.count()
+        self.assertEqual(history_count_before, 1)
+        
+        # Delete the user
+        self.user1.delete()
+        
+        # Check that message history with null editor is cleaned up
+        history_count_after = MessageHistory.objects.count()
+        self.assertEqual(history_count_after, 0)
+
+    def test_other_user_data_preserved(self):
+        """Test that other users' data is preserved when one user is deleted"""
+        # Create a message that doesn't involve user1 at all
+        message1 = Message.objects.create(
+            sender=self.user2,
+            receiver=self.user2,  # user2 sending to themselves
+            content="Test message within user2"
+        )
+        
+        user2_messages_before = Message.objects.filter(sender_id=self.user2_id, receiver_id=self.user2_id).count()
+        self.assertEqual(user2_messages_before, 1)
+        
+        # Delete user1 (should not affect user2's self-referencing message)
+        self.user1.delete()
+        
+        # Check that user2's data is still there
+        user2_messages_after = Message.objects.filter(sender_id=self.user2_id, receiver_id=self.user2_id).count()
+        self.assertEqual(user2_messages_after, 1)

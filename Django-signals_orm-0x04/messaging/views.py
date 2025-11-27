@@ -1,9 +1,11 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth import login, authenticate
+from django.contrib.auth import login, authenticate, logout
 from django.contrib.auth.forms import AuthenticationForm
 from .models import Message, Notification, MessageHistory
+from django.contrib import messages
+
 
 def user_login(request):
     if request.method == 'POST':
@@ -105,3 +107,32 @@ def message_history(request, message_id):
         'message': message,
         'history': history
     })
+
+
+# ... (keep all existing views above) ...
+
+@login_required
+def delete_account(request):
+    """View for users to delete their own account"""
+    if request.method == 'POST':
+        # Delete the user account
+        user = request.user
+        logout(request)  # Log out the user first
+        user.delete()  # This will trigger the post_delete signal
+        messages.success(request, 'Your account has been successfully deleted.')
+        return redirect('login')
+    
+    return render(request, 'messaging/delete_account.html')
+
+@login_required
+def delete_account(request):
+    """View for users to delete their own account"""
+    if request.method == 'POST':
+        # Delete the user account
+        user = request.user
+        logout(request)  # Log out the user first
+        user.delete()  # This will trigger the post_delete signal
+        messages.success(request, 'Your account has been successfully deleted.')
+        return redirect('login')
+    
+    return render(request, 'messaging/delete_account.html')

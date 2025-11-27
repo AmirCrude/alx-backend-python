@@ -64,8 +64,11 @@
     <p>No notifications.</p>
     {% endif %}
 
-    <br />
+    <br>
     <a href="{% url 'send_message' %}">Send New Message</a> |
-    <a href="/admin/">Admin Panel</a>
+    <a href="/admin/">Admin Panel</a> |
+    <a href="{% url 'delete_account' %}" style="color: red;">Delete Account</a>
+</body>
+</html>
   </body>
 </html>
