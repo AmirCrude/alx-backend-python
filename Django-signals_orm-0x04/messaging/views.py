@@ -125,7 +125,7 @@ def delete_account(request):
     return render(request, 'messaging/delete_account.html')
 
 @login_required
-def delete_account(request):
+def delete_user(request):  # CHANGED FROM delete_account to delete_user
     """View for users to delete their own account"""
     if request.method == 'POST':
         # Delete the user account
