@@ -13,4 +13,9 @@ urlpatterns = [
     path('thread/<int:message_id>/', views.threaded_conversation, name='threaded_conversation'),
     path('thread/', views.threaded_conversation, name='threaded_conversation_root'),
     path('message/<int:message_id>/reply/', views.reply_to_message, name='reply_to_message'),
+    # Unread messages URLs
+    path('unread/', views.unread_inbox, name='unread_inbox'),
+    path('mark-read/', views.mark_as_read, name='mark_as_read'),
+    path('mark-read/<int:message_id>/', views.mark_as_read, name='mark_as_read_single'),
+    path('summary/', views.inbox_summary, name='inbox_summary'),
 ]

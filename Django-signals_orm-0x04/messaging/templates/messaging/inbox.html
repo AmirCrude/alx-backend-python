@@ -14,12 +14,13 @@
         <strong>From {{ message.sender.username }}:</strong>
         {{ message.content }}
         <em>({{ message.timestamp }})</em>
-        {% if not message.read %}<strong>NEW</strong>{% endif %}
-        {% if message.edited %}<strong>EDITED</strong>{% endif %}
+        {% if not message.read %}<strong>NEW</strong>{% endif %} {% if
+        message.edited %}<strong>EDITED</strong>{% endif %}
         <br />
         <small>
           <a href="{% url 'message_history' message.id %}">View History</a>
-          | <a href="{% url 'threaded_conversation' message.id %}">View Thread</a>
+          |
+          <a href="{% url 'threaded_conversation' message.id %}">View Thread</a>
         </small>
       </li>
       {% endfor %}
@@ -41,7 +42,8 @@
         <small>
           <a href="{% url 'edit_message' message.id %}">Edit</a> |
           <a href="{% url 'message_history' message.id %}">View History</a>
-          | <a href="{% url 'threaded_conversation' message.id %}">View Thread</a> 
+          |
+          <a href="{% url 'threaded_conversation' message.id %}">View Thread</a>
         </small>
       </li>
       {% endfor %}
@@ -66,11 +68,19 @@
     <p>No notifications.</p>
     {% endif %}
 
-    <br>
+    <br />
     <a href="{% url 'send_message' %}">Send New Message</a> |
     <a href="/admin/">Admin Panel</a> |
-    <a href="{% url 'delete_user' %}" style="color: red;">Delete Account</a>
-</body>
-</html>
+    <a href="{% url 'delete_user' %}" style="color: red">Delete Account</a>
+
+    <br />
+    <div style="background: #f0f0f0; padding: 10px; margin: 10px 0">
+      <strong>Quick Links:</strong><br />
+      <a href="{% url 'unread_inbox' %}"
+        >Unread Messages ({{ received_messages.filter.read=False.count }})</a
+      >
+      | <a href="{% url 'inbox_summary' %}">Inbox Summary</a> |
+      <a href="{% url 'send_message' %}">Send New Message</a>
+    </div>
   </body>
 </html>

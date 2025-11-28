@@ -1,0 +1,48 @@
+﻿<!DOCTYPE html>
+<html>
+  <head>
+    <title>Unread Messages</title>
+    <style>
+      .unread-message {
+        background-color: #e3f2fd;
+        border-left: 4px solid #2196f3;
+        padding: 10px;
+        margin: 5px 0;
+      }
+      .message-actions {
+        margin-top: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Unread Messages ({{ unread_count }})</h1>
+
+    {% if unread_messages %} {% for message in unread_messages %}
+    <div class="unread-message">
+      <strong>From {{ message.sender.username }}:</strong><br />
+      {{ message.content }}<br />
+      <small>{{ message.timestamp }}</small>
+
+      <div class="message-actions">
+        <a href="{% url 'mark_as_read' message.id %}">Mark as Read</a> |
+        <a href="{% url 'reply_to_message' message.id %}">Reply</a> |
+        <a href="{% url 'threaded_conversation' message.id %}">View Thread</a>
+      </div>
+    </div>
+    {% endfor %}
+
+    <div style="margin-top: 20px">
+      <form method="post" action="{% url 'mark_as_read' %}">
+        {% csrf_token %}
+        <button type="submit">Mark All as Read</button>
+      </form>
+    </div>
+    {% else %}
+    <p>No unread messages.</p>
+    {% endif %}
+
+    <br />
+    <a href="{% url 'inbox' %}">View All Messages</a> |
+    <a href="{% url 'inbox_summary' %}">Inbox Summary</a>
+  </body>
+</html>

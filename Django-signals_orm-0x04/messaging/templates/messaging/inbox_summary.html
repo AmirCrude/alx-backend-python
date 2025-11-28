@@ -1,0 +1,52 @@
+﻿<!DOCTYPE html>
+<html>
+  <head>
+    <title>Inbox Summary</title>
+  </head>
+  <body>
+    <h1>Inbox Summary</h1>
+
+    <div style="background: #f5f5f5; padding: 10px; margin: 10px 0">
+      <strong>Statistics:</strong><br />
+      Total Messages: {{ total_count }}<br />
+      Unread Messages: {{ unread_count }}
+    </div>
+
+    <h2>Unread Messages</h2>
+    {% if unread_messages %}
+    <ul>
+      {% for message in unread_messages %}
+      <li>
+        <strong>{{ message.sender.username }}:</strong>
+        {{ message.content|truncatewords:10 }}
+        <small>({{ message.timestamp }})</small>
+        <a href="{% url 'mark_as_read' message.id %}">Mark Read</a>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p>No unread messages.</p>
+    {% endif %}
+
+    <h2>Recent Messages</h2>
+    {% if recent_messages %}
+    <ul>
+      {% for message in recent_messages %}
+      <li {% if not message.read %}style="font-weight: bold;" {% endif %}>
+        {% if message.sender == request.user %} To {{ message.receiver.username
+        }}: {% else %} From {{ message.sender.username }}: {% endif %} {{
+        message.content|truncatewords:10 }}
+        <small>({{ message.timestamp }})</small>
+        {% if not message.read %}(UNREAD){% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p>No messages.</p>
+    {% endif %}
+
+    <br />
+    <a href="{% url 'unread_inbox' %}">View Unread Only</a> |
+    <a href="{% url 'inbox' %}">View All Messages</a>
+  </body>
+</html>

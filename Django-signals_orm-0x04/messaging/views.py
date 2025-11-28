@@ -5,6 +5,8 @@ from django.contrib.auth import login, authenticate, logout
 from django.contrib.auth.forms import AuthenticationForm
 from .models import Message, Notification, MessageHistory
 from django.contrib import messages
+from django.db.models import Prefetch, Q
+from django.db import models
 
 
 def user_login(request):
@@ -107,9 +109,6 @@ def message_history(request, message_id):
         'message': message,
         'history': history
     })
-
-
-# ... (keep all existing views above) ...
 
 @login_required
 def delete_account(request):
@@ -229,3 +228,65 @@ def get_user_conversations(user):
     ).order_by('-last_activity')
     
     return conversations
+
+
+@login_required
+def unread_inbox(request):
+    """Display only unread messages using the custom manager"""
+    # Use the custom manager to get unread messages
+    unread_messages = Message.unread_messages.for_user(request.user)
+    
+    # Use .only() to optimize query - only get necessary fields
+    unread_messages = unread_messages.select_related('sender').only(
+        'id', 'content', 'timestamp', 'sender__username', 'edited'
+    ).order_by('-timestamp')
+    
+    # Get unread count using the custom manager
+    unread_count = Message.unread_messages.unread_count_for_user(request.user)
+    
+    return render(request, 'messaging/unread_inbox.html', {
+        'unread_messages': unread_messages,
+        'unread_count': unread_count,
+    })
+
+@login_required
+def mark_as_read(request, message_id=None):
+    """Mark messages as read using the custom manager"""
+    if message_id:
+        # Mark single message as read
+        Message.unread_messages.mark_as_read(request.user, [message_id])
+        messages.success(request, 'Message marked as read.')
+    else:
+        # Mark all unread messages as read
+        count = Message.unread_messages.mark_as_read(request.user)
+        messages.success(request, f'{count} messages marked as read.')
+    
+    return redirect('unread_inbox')
+
+@login_required
+def inbox_summary(request):
+    """Display inbox summary with optimized queries"""
+    # Get unread messages using custom manager with .only()
+    unread_messages = Message.unread_messages.for_user(request.user).select_related(
+        'sender'
+    ).only('id', 'content', 'timestamp', 'sender__username').order_by('-timestamp')[:5]
+    
+    # Get recent messages (all messages, including read)
+    recent_messages = Message.objects.filter(
+        Q(sender=request.user) | Q(receiver=request.user)
+    ).select_related('sender', 'receiver').only(
+        'id', 'content', 'timestamp', 'sender__username', 'receiver__username', 'read'
+    ).order_by('-timestamp')[:10]
+    
+    # Get counts using optimized queries
+    unread_count = Message.unread_messages.unread_count_for_user(request.user)
+    total_count = Message.objects.filter(
+        Q(sender=request.user) | Q(receiver=request.user)
+    ).count()
+    
+    return render(request, 'messaging/inbox_summary.html', {
+        'unread_messages': unread_messages,
+        'recent_messages': recent_messages,
+        'unread_count': unread_count,
+        'total_count': total_count,
+    })

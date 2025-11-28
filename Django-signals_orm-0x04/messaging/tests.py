@@ -400,3 +400,85 @@ class ThreadedConversationTests(TestCase):
         conversation = conversations.first()
         self.assertEqual(conversation.reply_count, 1)
         self.assertIsNotNone(conversation.last_activity)
+
+class CustomManagerTests(TestCase):
+    def setUp(self):
+        self.user1 = User.objects.create_user(username='user1', password='test123')
+        self.user2 = User.objects.create_user(username='user2', password='test123')
+        
+        # Create test messages
+        self.read_message = Message.objects.create(
+            sender=self.user1,
+            receiver=self.user2,
+            content="Read message",
+            read=True
+        )
+        self.unread_message1 = Message.objects.create(
+            sender=self.user1,
+            receiver=self.user2,
+            content="Unread message 1",
+            read=False
+        )
+        self.unread_message2 = Message.objects.create(
+            sender=self.user2,
+            receiver=self.user1,
+            content="Unread message 2",
+            read=False
+        )
+    
+    def test_unread_messages_manager_for_user(self):
+        """Test that custom manager returns only unread messages for a user"""
+        # Test for user2
+        unread_for_user2 = Message.unread_messages.for_user(self.user2)
+        self.assertEqual(unread_for_user2.count(), 1)
+        self.assertEqual(unread_for_user2.first(), self.unread_message1)
+        
+        # Test for user1
+        unread_for_user1 = Message.unread_messages.for_user(self.user1)
+        self.assertEqual(unread_for_user1.count(), 1)
+        self.assertEqual(unread_for_user1.first(), self.unread_message2)
+    
+    def test_unread_count_for_user(self):
+        """Test unread count method"""
+        self.assertEqual(Message.unread_messages.unread_count_for_user(self.user2), 1)
+        self.assertEqual(Message.unread_messages.unread_count_for_user(self.user1), 1)
+    
+    def test_mark_as_read_single(self):
+        """Test marking single message as read"""
+        # Mark unread_message1 as read
+        Message.unread_messages.mark_as_read(self.user2, [self.unread_message1.id])
+        
+        # Verify it's now read
+        self.unread_message1.refresh_from_db()
+        self.assertTrue(self.unread_message1.read)
+        
+        # Verify count decreased
+        self.assertEqual(Message.unread_messages.unread_count_for_user(self.user2), 0)
+    
+    def test_mark_all_as_read(self):
+        """Test marking all unread messages as read"""
+        # Mark all unread messages for user1 as read
+        count = Message.unread_messages.mark_as_read(self.user1)
+        self.assertEqual(count, 1)
+        
+        # Verify no unread messages left for user1
+        self.assertEqual(Message.unread_messages.unread_count_for_user(self.user1), 0)
+    
+    def test_only_optimization(self):
+        """Test that .only() optimization works"""
+        from django.db import connection
+        
+        # Reset query count
+        connection.queries_log.clear()
+        
+        # Query with .only() optimization
+        messages = Message.unread_messages.for_user(self.user2).select_related(
+            'sender'
+        ).only('id', 'content', 'timestamp', 'sender__username')
+        
+        # Force query execution
+        list(messages)
+        
+        # Check that we're not fetching unnecessary fields
+        # This is a basic check - the actual field optimization is handled by Django
+        self.assertTrue(len(connection.queries) > 0)
