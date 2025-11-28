@@ -8,5 +8,9 @@ urlpatterns = [
     path('temp-inbox/', views.temp_inbox, name='temp_inbox'),
     path('message/<int:message_id>/edit/', views.edit_message, name='edit_message'),
     path('message/<int:message_id>/history/', views.message_history, name='message_history'),
-    path('delete-account/', views.delete_user, name='delete_user'),  
+    path('delete-account/', views.delete_user, name='delete_user'),
+    # Threaded conversation URLs
+    path('thread/<int:message_id>/', views.threaded_conversation, name='threaded_conversation'),
+    path('thread/', views.threaded_conversation, name='threaded_conversation_root'),
+    path('message/<int:message_id>/reply/', views.reply_to_message, name='reply_to_message'),
 ]

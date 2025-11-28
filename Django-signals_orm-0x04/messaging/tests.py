@@ -311,3 +311,92 @@ class UserDeletionTests(TestCase):
         # Check that user2's data is still there
         user2_messages_after = Message.objects.filter(sender_id=self.user2_id, receiver_id=self.user2_id).count()
         self.assertEqual(user2_messages_after, 1)
+
+class ThreadedConversationTests(TestCase):
+    def setUp(self):
+        self.user1 = User.objects.create_user(username='user1', password='test123')
+        self.user2 = User.objects.create_user(username='user2', password='test123')
+        
+        # Create a conversation thread
+        self.root_message = Message.objects.create(
+            sender=self.user1,
+            receiver=self.user2,
+            content="Hello, how are you?"
+        )
+        self.reply1 = Message.objects.create(
+            sender=self.user2,
+            receiver=self.user1,
+            content="I'm good, thanks!",
+            parent_message=self.root_message
+        )
+        self.reply2 = Message.objects.create(
+            sender=self.user1,
+            receiver=self.user2,
+            content="That's great to hear!",
+            parent_message=self.reply1
+        )
+    
+    def test_message_thread_creation(self):
+        """Test that threaded messages are properly linked"""
+        self.assertIsNone(self.root_message.parent_message)
+        self.assertEqual(self.reply1.parent_message, self.root_message)
+        self.assertEqual(self.reply2.parent_message, self.reply1)
+        
+        # Test reverse relationships
+        self.assertEqual(self.root_message.replies.count(), 1)
+        self.assertEqual(self.reply1.replies.count(), 1)
+        self.assertEqual(self.reply2.replies.count(), 0)
+    
+    def test_thread_depth_calculation(self):
+        """Test thread depth calculation"""
+        self.assertEqual(self.root_message.get_thread_depth(), 0)
+        self.assertEqual(self.reply1.get_thread_depth(), 1)
+        self.assertEqual(self.reply2.get_thread_depth(), 2)
+    
+    def test_is_reply_property(self):
+        """Test the is_reply property"""
+        self.assertFalse(self.root_message.is_reply)
+        self.assertTrue(self.reply1.is_reply)
+        self.assertTrue(self.reply2.is_reply)
+    
+    def test_optimized_thread_query(self):
+        """Test that thread queries are optimized with select_related and prefetch_related"""
+        from django.db import connection
+        
+        # Reset query count
+        connection.queries_log.clear()
+        
+        # Get thread with optimized queries
+        thread_messages = Message.objects.filter(
+            Q(parent_message=self.root_message) | Q(id=self.root_message.id)
+        ).select_related('sender', 'receiver', 'parent_message').prefetch_related('replies').order_by('timestamp')
+        
+        # Force evaluation to count queries
+        list(thread_messages)
+        
+        # This should use fewer queries than naive approach
+        # We can't predict exact count, but it should be reasonable
+        query_count = len(connection.queries)
+        self.assertLess(query_count, 10)  # Should be significantly less than N+1 queries
+    
+    def test_conversation_aggregation(self):
+        """Test conversation aggregation with annotations"""
+        from django.db.models import Count, Max, Case, When
+        
+        conversations = Message.objects.filter(
+            Q(sender=self.user1) | Q(receiver=self.user1),
+            parent_message__isnull=True
+        ).select_related('sender', 'receiver').annotate(
+            reply_count=Count('replies'),
+            last_activity=Max(
+                Case(
+                    When(replies__isnull=False, then='replies__timestamp'),
+                    default='timestamp',
+                    output_field=models.DateTimeField()
+                )
+            )
+        ).order_by('-last_activity')
+        
+        conversation = conversations.first()
+        self.assertEqual(conversation.reply_count, 1)
+        self.assertIsNotNone(conversation.last_activity)

@@ -19,6 +19,7 @@
         <br />
         <small>
           <a href="{% url 'message_history' message.id %}">View History</a>
+          | <a href="{% url 'threaded_conversation' message.id %}">View Thread</a>
         </small>
       </li>
       {% endfor %}
@@ -40,6 +41,7 @@
         <small>
           <a href="{% url 'edit_message' message.id %}">Edit</a> |
           <a href="{% url 'message_history' message.id %}">View History</a>
+          | <a href="{% url 'threaded_conversation' message.id %}">View Thread</a> 
         </small>
       </li>
       {% endfor %}

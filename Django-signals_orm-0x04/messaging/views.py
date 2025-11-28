@@ -136,3 +136,96 @@ def delete_user(request):  # CHANGED FROM delete_account to delete_user
         return redirect('login')
     
     return render(request, 'messaging/delete_account.html')
+
+
+@login_required
+def threaded_conversation(request, message_id=None):
+    """
+    Display a threaded conversation starting from a specific message.
+    Uses prefetch_related and select_related for optimization.
+    """
+    if message_id:
+        # Start from a specific message in the thread
+        root_message = get_object_or_404(Message, id=message_id)
+        # Ensure user has permission to view this conversation
+        if root_message.sender != request.user and root_message.receiver != request.user:
+            return redirect('inbox')
+    else:
+        # Get the latest conversation for the user
+        latest_message = Message.objects.filter(
+            Q(sender=request.user) | Q(receiver=request.user)
+        ).select_related('sender', 'receiver').first()
+        
+        if not latest_message:
+            return render(request, 'messaging/threaded_conversation.html', {
+                'error': 'No messages found.'
+            })
+        root_message = latest_message
+    
+    # Get all messages in this conversation thread
+    # First, find the root of the thread (oldest parent)
+    current = root_message
+    while current.parent_message:
+        current = current.parent_message
+    root_message = current
+    
+    # Optimized query: get all messages in the thread with prefetching
+    thread_messages = Message.objects.filter(
+        Q(parent_message=root_message) | Q(id=root_message.id)
+    ).select_related('sender', 'receiver', 'parent_message').prefetch_related(
+        Prefetch('replies', queryset=Message.objects.select_related('sender', 'receiver').order_by('timestamp'))
+    ).order_by('timestamp')
+    
+    return render(request, 'messaging/threaded_conversation.html', {
+        'root_message': root_message,
+        'thread_messages': thread_messages,
+    })
+
+@login_required
+def reply_to_message(request, message_id):
+    """View to reply to a specific message"""
+    parent_message = get_object_or_404(Message, id=message_id)
+    
+    # Ensure user is part of the conversation
+    if parent_message.sender != request.user and parent_message.receiver != request.user:
+        return redirect('inbox')
+    
+    if request.method == 'POST':
+        content = request.POST.get('content')
+        if content:
+            # Create reply
+            reply = Message.objects.create(
+                sender=request.user,
+                receiver=parent_message.sender if request.user != parent_message.sender else parent_message.receiver,
+                content=content,
+                parent_message=parent_message
+            )
+            return redirect('threaded_conversation', message_id=parent_message.id)
+    
+    return render(request, 'messaging/reply_message.html', {
+        'parent_message': parent_message,
+    })
+
+def get_user_conversations(user):
+    """
+    Custom ORM method to get all conversations for a user with optimized queries.
+    Returns a list of conversation threads with the latest message and reply count.
+    """
+    # Get all root messages (conversation starters) involving the user
+    conversations = Message.objects.filter(
+        Q(sender=user) | Q(receiver=user),
+        parent_message__isnull=True  # Only root messages
+    ).select_related('sender', 'receiver').prefetch_related(
+        Prefetch('replies', queryset=Message.objects.select_related('sender', 'receiver'))
+    ).annotate(
+        reply_count=models.Count('replies'),
+        last_activity=models.Max(
+            models.Case(
+                models.When(replies__isnull=False, then=models.F('replies__timestamp')),
+                default=models.F('timestamp'),
+                output_field=models.DateTimeField()
+            )
+        )
+    ).order_by('-last_activity')
+    
+    return conversations

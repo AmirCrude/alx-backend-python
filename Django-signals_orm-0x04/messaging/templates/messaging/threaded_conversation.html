@@ -1,0 +1,66 @@
+﻿<!DOCTYPE html>
+<html>
+  <head>
+    <title>Threaded Conversation</title>
+    <style>
+      .thread-message {
+        border: 1px solid #ccc;
+        padding: 10px;
+        margin: 5px 0;
+        background: #f9f9f9;
+      }
+      .reply {
+        margin-left: 20px;
+        border-left: 3px solid #4caf50;
+        padding-left: 10px;
+      }
+      .message-info {
+        font-size: 0.9em;
+        color: #666;
+        margin-bottom: 5px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Threaded Conversation</h1>
+
+    {% if error %}
+    <p style="color: red">{{ error }}</p>
+    {% else %}
+    <h3>
+      Conversation between {{ root_message.sender.username }} and {{
+      root_message.receiver.username }}
+    </h3>
+
+    {% for message in thread_messages %}
+    <div class="thread-message {% if message.parent_message %}reply{% endif %}">
+      <div class="message-info">
+        <strong>{{ message.sender.username }}</strong> - {{ message.timestamp }}
+        {% if message.edited %}(edited){% endif %} {% if not message.read and
+        message.receiver == request.user %}<strong>NEW</strong>{% endif %}
+      </div>
+      <div>{{ message.content }}</div>
+      <div>
+        <small>
+          <a href="{% url 'reply_to_message' message.id %}">Reply</a>
+          {% if message.sender == request.user %} |
+          <a href="{% url 'edit_message' message.id %}">Edit</a>
+          {% endif %}
+        </small>
+      </div>
+    </div>
+    {% endfor %}
+
+    <h3>Reply to this conversation</h3>
+    <form method="post" action="{% url 'reply_to_message' root_message.id %}">
+      {% csrf_token %}
+      <textarea name="content" rows="4" cols="50" required></textarea>
+      <br />
+      <button type="submit">Send Reply</button>
+    </form>
+    {% endif %}
+
+    <br />
+    <a href="{% url 'inbox' %}">Back to Inbox</a>
+  </body>
+</html>
