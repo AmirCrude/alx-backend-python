@@ -233,8 +233,7 @@ def get_user_conversations(user):
 @login_required
 def unread_inbox(request):
     """Display only unread messages using the custom manager"""
-    # Use the custom manager to get unread messages
-    unread_messages = Message.unread_messages.for_user(request.user)
+    unread_messages = Message.unread.unread_for_user(request.user)
     
     # Use .only() to optimize query - only get necessary fields
     unread_messages = unread_messages.select_related('sender').only(
@@ -242,23 +241,22 @@ def unread_inbox(request):
     ).order_by('-timestamp')
     
     # Get unread count using the custom manager
-    unread_count = Message.unread_messages.unread_count_for_user(request.user)
+    unread_count = Message.unread.unread_count_for_user(request.user)
     
     return render(request, 'messaging/unread_inbox.html', {
         'unread_messages': unread_messages,
         'unread_count': unread_count,
     })
-
 @login_required
 def mark_as_read(request, message_id=None):
     """Mark messages as read using the custom manager"""
     if message_id:
         # Mark single message as read
-        Message.unread_messages.mark_as_read(request.user, [message_id])
+        Message.unread.mark_as_read(request.user, [message_id])  # Changed to .unread
         messages.success(request, 'Message marked as read.')
     else:
         # Mark all unread messages as read
-        count = Message.unread_messages.mark_as_read(request.user)
+        count = Message.unread.mark_as_read(request.user)  # Changed to .unread
         messages.success(request, f'{count} messages marked as read.')
     
     return redirect('unread_inbox')
@@ -267,7 +265,7 @@ def mark_as_read(request, message_id=None):
 def inbox_summary(request):
     """Display inbox summary with optimized queries"""
     # Get unread messages using custom manager with .only()
-    unread_messages = Message.unread_messages.for_user(request.user).select_related(
+    unread_messages = Message.unread.unread_for_user(request.user).select_related(  # Changed to .unread.unread_for_user
         'sender'
     ).only('id', 'content', 'timestamp', 'sender__username').order_by('-timestamp')[:5]
     
@@ -279,7 +277,7 @@ def inbox_summary(request):
     ).order_by('-timestamp')[:10]
     
     # Get counts using optimized queries
-    unread_count = Message.unread_messages.unread_count_for_user(request.user)
+    unread_count = Message.unread.unread_count_for_user(request.user)  # Changed to .unread
     total_count = Message.objects.filter(
         Q(sender=request.user) | Q(receiver=request.user)
     ).count()

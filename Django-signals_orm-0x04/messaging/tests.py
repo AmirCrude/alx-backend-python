@@ -3,6 +3,10 @@ from django.contrib.auth.models import User
 from .models import Message, Notification, MessageHistory
 from django.utils import timezone
 from django.urls import reverse
+from django.db import models
+from django.db.models import Q
+
+
 
 class SignalTests(TestCase):
     def setUp(self):
@@ -401,6 +405,7 @@ class ThreadedConversationTests(TestCase):
         self.assertEqual(conversation.reply_count, 1)
         self.assertIsNotNone(conversation.last_activity)
 
+
 class CustomManagerTests(TestCase):
     def setUp(self):
         self.user1 = User.objects.create_user(username='user1', password='test123')
@@ -428,41 +433,40 @@ class CustomManagerTests(TestCase):
     
     def test_unread_messages_manager_for_user(self):
         """Test that custom manager returns only unread messages for a user"""
-        # Test for user2
-        unread_for_user2 = Message.unread_messages.for_user(self.user2)
+        unread_for_user2 = Message.unread.unread_for_user(self.user2)  # Changed to .unread.unread_for_user
         self.assertEqual(unread_for_user2.count(), 1)
         self.assertEqual(unread_for_user2.first(), self.unread_message1)
         
         # Test for user1
-        unread_for_user1 = Message.unread_messages.for_user(self.user1)
+        unread_for_user1 = Message.unread.unread_for_user(self.user1)  # Changed to .unread.unread_for_user
         self.assertEqual(unread_for_user1.count(), 1)
         self.assertEqual(unread_for_user1.first(), self.unread_message2)
     
     def test_unread_count_for_user(self):
         """Test unread count method"""
-        self.assertEqual(Message.unread_messages.unread_count_for_user(self.user2), 1)
-        self.assertEqual(Message.unread_messages.unread_count_for_user(self.user1), 1)
+        self.assertEqual(Message.unread.unread_count_for_user(self.user2), 1)  # Changed to .unread
+        self.assertEqual(Message.unread.unread_count_for_user(self.user1), 1)  # Changed to .unread
     
     def test_mark_as_read_single(self):
         """Test marking single message as read"""
         # Mark unread_message1 as read
-        Message.unread_messages.mark_as_read(self.user2, [self.unread_message1.id])
+        Message.unread.mark_as_read(self.user2, [self.unread_message1.id])  # Changed to .unread
         
         # Verify it's now read
         self.unread_message1.refresh_from_db()
         self.assertTrue(self.unread_message1.read)
         
         # Verify count decreased
-        self.assertEqual(Message.unread_messages.unread_count_for_user(self.user2), 0)
+        self.assertEqual(Message.unread.unread_count_for_user(self.user2), 0)  # Changed to .unread
     
     def test_mark_all_as_read(self):
         """Test marking all unread messages as read"""
         # Mark all unread messages for user1 as read
-        count = Message.unread_messages.mark_as_read(self.user1)
+        count = Message.unread.mark_as_read(self.user1)  # Changed to .unread
         self.assertEqual(count, 1)
         
         # Verify no unread messages left for user1
-        self.assertEqual(Message.unread_messages.unread_count_for_user(self.user1), 0)
+        self.assertEqual(Message.unread.unread_count_for_user(self.user1), 0)  # Changed to .unread
     
     def test_only_optimization(self):
         """Test that .only() optimization works"""
@@ -471,8 +475,8 @@ class CustomManagerTests(TestCase):
         # Reset query count
         connection.queries_log.clear()
         
-        # Query with .only() optimization
-        messages = Message.unread_messages.for_user(self.user2).select_related(
+        # Query with .only() optimization - using ALX pattern
+        messages = Message.unread.unread_for_user(self.user2).select_related(  # Changed to .unread.unread_for_user
             'sender'
         ).only('id', 'content', 'timestamp', 'sender__username')
         
@@ -480,5 +484,4 @@ class CustomManagerTests(TestCase):
         list(messages)
         
         # Check that we're not fetching unnecessary fields
-        # This is a basic check - the actual field optimization is handled by Django
         self.assertTrue(len(connection.queries) > 0)
