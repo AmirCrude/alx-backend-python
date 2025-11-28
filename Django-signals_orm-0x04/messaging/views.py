@@ -3,11 +3,12 @@ from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import login, authenticate, logout
 from django.contrib.auth.forms import AuthenticationForm
-from .models import Message, Notification, MessageHistory
 from django.contrib import messages
-from django.db.models import Prefetch, Q
+from django.db.models import Prefetch, Q, Count, Max, Case, When
 from django.db import models
-
+from django.views.decorators.cache import cache_page
+from django.core.cache import cache
+from .models import Message, Notification, MessageHistory
 
 def user_login(request):
     if request.method == 'POST':
@@ -26,11 +27,9 @@ def user_login(request):
 # Temporary view for easy testing - allows any user to access
 def temp_inbox(request):
     """Temporary inbox view that doesn't require login for testing"""
-    # For testing, use the first user or create one
     try:
         user = User.objects.first()
         if not user:
-            # Create a test user if none exists
             user = User.objects.create_user('testuser', 'test@example.com', 'testpass')
         
         received_messages = Message.objects.filter(receiver=user)
@@ -48,6 +47,7 @@ def temp_inbox(request):
         })
 
 @login_required
+@cache_page(60)
 def inbox(request):
     """Proper inbox view that requires login"""
     received_messages = Message.objects.filter(receiver=request.user)
@@ -86,10 +86,8 @@ def edit_message(request, message_id):
     message = get_object_or_404(Message, id=message_id, sender=request.user)
     
     if request.method == 'POST':
-        old_content = message.content  # Store old content for display
         message.content = request.POST.get('content')
         message.save()
-        
         return redirect('message_history', message_id=message.id)
     
     return render(request, 'messaging/edit_message.html', {
@@ -99,7 +97,6 @@ def edit_message(request, message_id):
 @login_required
 def message_history(request, message_id):
     message = get_object_or_404(Message, id=message_id)
-    # Only allow sender or receiver to view history
     if message.sender != request.user and message.receiver != request.user:
         return redirect('inbox')
     
@@ -111,46 +108,26 @@ def message_history(request, message_id):
     })
 
 @login_required
-def delete_account(request):
+def delete_user(request):
     """View for users to delete their own account"""
     if request.method == 'POST':
-        # Delete the user account
         user = request.user
-        logout(request)  # Log out the user first
-        user.delete()  # This will trigger the post_delete signal
+        logout(request)
+        user.delete()
         messages.success(request, 'Your account has been successfully deleted.')
         return redirect('login')
     
     return render(request, 'messaging/delete_account.html')
 
 @login_required
-def delete_user(request):  # CHANGED FROM delete_account to delete_user
-    """View for users to delete their own account"""
-    if request.method == 'POST':
-        # Delete the user account
-        user = request.user
-        logout(request)  # Log out the user first
-        user.delete()  # This will trigger the post_delete signal
-        messages.success(request, 'Your account has been successfully deleted.')
-        return redirect('login')
-    
-    return render(request, 'messaging/delete_account.html')
-
-
-@login_required
+@cache_page(60)
 def threaded_conversation(request, message_id=None):
-    """
-    Display a threaded conversation starting from a specific message.
-    Uses prefetch_related and select_related for optimization.
-    """
+    """Display a threaded conversation starting from a specific message"""
     if message_id:
-        # Start from a specific message in the thread
         root_message = get_object_or_404(Message, id=message_id)
-        # Ensure user has permission to view this conversation
         if root_message.sender != request.user and root_message.receiver != request.user:
             return redirect('inbox')
     else:
-        # Get the latest conversation for the user
         latest_message = Message.objects.filter(
             Q(sender=request.user) | Q(receiver=request.user)
         ).select_related('sender', 'receiver').first()
@@ -161,14 +138,11 @@ def threaded_conversation(request, message_id=None):
             })
         root_message = latest_message
     
-    # Get all messages in this conversation thread
-    # First, find the root of the thread (oldest parent)
     current = root_message
     while current.parent_message:
         current = current.parent_message
     root_message = current
     
-    # Optimized query: get all messages in the thread with prefetching
     thread_messages = Message.objects.filter(
         Q(parent_message=root_message) | Q(id=root_message.id)
     ).select_related('sender', 'receiver', 'parent_message').prefetch_related(
@@ -185,14 +159,12 @@ def reply_to_message(request, message_id):
     """View to reply to a specific message"""
     parent_message = get_object_or_404(Message, id=message_id)
     
-    # Ensure user is part of the conversation
     if parent_message.sender != request.user and parent_message.receiver != request.user:
         return redirect('inbox')
     
     if request.method == 'POST':
         content = request.POST.get('content')
         if content:
-            # Create reply
             reply = Message.objects.create(
                 sender=request.user,
                 receiver=parent_message.sender if request.user != parent_message.sender else parent_message.receiver,
@@ -206,21 +178,17 @@ def reply_to_message(request, message_id):
     })
 
 def get_user_conversations(user):
-    """
-    Custom ORM method to get all conversations for a user with optimized queries.
-    Returns a list of conversation threads with the latest message and reply count.
-    """
-    # Get all root messages (conversation starters) involving the user
+    """Custom ORM method to get all conversations for a user with optimized queries"""
     conversations = Message.objects.filter(
         Q(sender=user) | Q(receiver=user),
-        parent_message__isnull=True  # Only root messages
+        parent_message__isnull=True
     ).select_related('sender', 'receiver').prefetch_related(
         Prefetch('replies', queryset=Message.objects.select_related('sender', 'receiver'))
     ).annotate(
-        reply_count=models.Count('replies'),
-        last_activity=models.Max(
-            models.Case(
-                models.When(replies__isnull=False, then=models.F('replies__timestamp')),
+        reply_count=Count('replies'),
+        last_activity=Max(
+            Case(
+                When(replies__isnull=False, then=models.F('replies__timestamp')),
                 default=models.F('timestamp'),
                 output_field=models.DateTimeField()
             )
@@ -229,55 +197,50 @@ def get_user_conversations(user):
     
     return conversations
 
-
 @login_required
+@cache_page(60)
 def unread_inbox(request):
     """Display only unread messages using the custom manager"""
     unread_messages = Message.unread.unread_for_user(request.user)
     
-    # Use .only() to optimize query - only get necessary fields
     unread_messages = unread_messages.select_related('sender').only(
         'id', 'content', 'timestamp', 'sender__username', 'edited'
     ).order_by('-timestamp')
     
-    # Get unread count using the custom manager
     unread_count = Message.unread.unread_count_for_user(request.user)
     
     return render(request, 'messaging/unread_inbox.html', {
         'unread_messages': unread_messages,
         'unread_count': unread_count,
     })
+
 @login_required
 def mark_as_read(request, message_id=None):
     """Mark messages as read using the custom manager"""
     if message_id:
-        # Mark single message as read
-        Message.unread.mark_as_read(request.user, [message_id])  # Changed to .unread
+        Message.unread.mark_as_read(request.user, [message_id])
         messages.success(request, 'Message marked as read.')
     else:
-        # Mark all unread messages as read
-        count = Message.unread.mark_as_read(request.user)  # Changed to .unread
+        count = Message.unread.mark_as_read(request.user)
         messages.success(request, f'{count} messages marked as read.')
     
     return redirect('unread_inbox')
 
 @login_required
+@cache_page(60)
 def inbox_summary(request):
     """Display inbox summary with optimized queries"""
-    # Get unread messages using custom manager with .only()
-    unread_messages = Message.unread.unread_for_user(request.user).select_related(  # Changed to .unread.unread_for_user
+    unread_messages = Message.unread.unread_for_user(request.user).select_related(
         'sender'
     ).only('id', 'content', 'timestamp', 'sender__username').order_by('-timestamp')[:5]
     
-    # Get recent messages (all messages, including read)
     recent_messages = Message.objects.filter(
         Q(sender=request.user) | Q(receiver=request.user)
     ).select_related('sender', 'receiver').only(
         'id', 'content', 'timestamp', 'sender__username', 'receiver__username', 'read'
     ).order_by('-timestamp')[:10]
     
-    # Get counts using optimized queries
-    unread_count = Message.unread.unread_count_for_user(request.user)  # Changed to .unread
+    unread_count = Message.unread.unread_count_for_user(request.user)
     total_count = Message.objects.filter(
         Q(sender=request.user) | Q(receiver=request.user)
     ).count()
@@ -288,3 +251,35 @@ def inbox_summary(request):
         'unread_count': unread_count,
         'total_count': total_count,
     })
+
+@login_required
+def cache_test(request):
+    """Test view to demonstrate caching functionality"""
+    cache_key = f'user_{request.user.id}_message_count'
+    message_count = cache.get(cache_key)
+    
+    if message_count is None:
+        message_count = Message.objects.filter(
+            Q(sender=request.user) | Q(receiver=request.user)
+        ).count()
+        cache.set(cache_key, message_count, 60)
+        cache_source = 'Calculated and cached'
+    else:
+        cache_source = 'Retrieved from cache'
+    
+    from datetime import datetime
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    return render(request, 'messaging/cache_test.html', {
+        'message_count': message_count,
+        'cache_source': cache_source,
+        'current_time': current_time,
+        'cache_key': cache_key,
+    })
+
+def clear_cache_test(request):
+    """Clear the cache for testing"""
+    cache_key = f'user_{request.user.id}_message_count'
+    cache.delete(cache_key)
+    messages.success(request, 'Cache cleared for message count')
+    return redirect('cache_test')

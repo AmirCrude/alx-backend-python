@@ -1,4 +1,5 @@
-﻿<!DOCTYPE html>
+﻿{% load cache %}
+<!DOCTYPE html>
 <html>
   <head>
     <title>Unread Messages</title>
@@ -17,7 +18,8 @@
   <body>
     <h1>Unread Messages ({{ unread_count }})</h1>
 
-    {% if unread_messages %} {% for message in unread_messages %}
+    {% cache 60 unread_messages request.user.id %} {% if unread_messages %} {%
+    for message in unread_messages %}
     <div class="unread-message">
       <strong>From {{ message.sender.username }}:</strong><br />
       {{ message.content }}<br />
@@ -29,7 +31,9 @@
         <a href="{% url 'threaded_conversation' message.id %}">View Thread</a>
       </div>
     </div>
-    {% endfor %}
+    {% endfor %} {% else %}
+    <p>No unread messages.</p>
+    {% endif %} {% endcache %}
 
     <div style="margin-top: 20px">
       <form method="post" action="{% url 'mark_as_read' %}">
@@ -37,9 +41,6 @@
         <button type="submit">Mark All as Read</button>
       </form>
     </div>
-    {% else %}
-    <p>No unread messages.</p>
-    {% endif %}
 
     <br />
     <a href="{% url 'inbox' %}">View All Messages</a> |

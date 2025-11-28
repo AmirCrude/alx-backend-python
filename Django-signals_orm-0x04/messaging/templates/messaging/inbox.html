@@ -1,4 +1,5 @@
-﻿<!DOCTYPE html>
+﻿{% load cache %}
+<!DOCTYPE html>
 <html>
   <head>
     <title>Inbox</title>
@@ -14,12 +15,23 @@
         <strong>From {{ message.sender.username }}:</strong>
         {{ message.content }}
         <em>({{ message.timestamp }})</em>
-        {% if not message.read %}<strong>NEW</strong>{% endif %} {% if
-        message.edited %}<strong>EDITED</strong>{% endif %}
+
+        <span>
+          {% if not message.read %}
+          <strong>NEW</strong>
+          {% endif %}
+        </span>
+
+        <span>
+          {% if message.edited %}
+          <strong>EDITED</strong>
+          {% endif %}
+        </span>
+
         <br />
+
         <small>
-          <a href="{% url 'message_history' message.id %}">View History</a>
-          |
+          <a href="{% url 'message_history' message.id %}">View History</a> |
           <a href="{% url 'threaded_conversation' message.id %}">View Thread</a>
         </small>
       </li>
@@ -37,12 +49,15 @@
         <strong>To {{ message.receiver.username }}:</strong>
         {{ message.content }}
         <em>({{ message.timestamp }})</em>
-        {% if message.edited %}<strong>EDITED</strong>{% endif %}
+
+        {% if message.edited %}
+        <strong>EDITED</strong>
+        {% endif %}
+
         <br />
         <small>
           <a href="{% url 'edit_message' message.id %}">Edit</a> |
-          <a href="{% url 'message_history' message.id %}">View History</a>
-          |
+          <a href="{% url 'message_history' message.id %}">View History</a> |
           <a href="{% url 'threaded_conversation' message.id %}">View Thread</a>
         </small>
       </li>
@@ -60,7 +75,10 @@
         <strong>{{ notification.notification_type }}:</strong>
         {{ notification.message.content|truncatewords:10 }}
         <em>({{ notification.created_at }})</em>
-        {% if not notification.read %}<strong>UNREAD</strong>{% endif %}
+
+        {% if not notification.read %}
+        <strong>UNREAD</strong>
+        {% endif %}
       </li>
       {% endfor %}
     </ul>
@@ -69,16 +87,20 @@
     {% endif %}
 
     <br />
+
     <a href="{% url 'send_message' %}">Send New Message</a> |
     <a href="/admin/">Admin Panel</a> |
     <a href="{% url 'delete_user' %}" style="color: red">Delete Account</a>
 
-    <br />
+    <br /><br />
+
     <div style="background: #f0f0f0; padding: 10px; margin: 10px 0">
       <strong>Quick Links:</strong><br />
-      <a href="{% url 'unread_inbox' %}"
-        >Unread Messages ({{ received_messages.filter.read=False.count }})</a
-      >
+
+      <a href="{% url 'unread_inbox' %}">
+        Unread Messages ({{ unread_count }})
+      </a>
+
       | <a href="{% url 'inbox_summary' %}">Inbox Summary</a> |
       <a href="{% url 'send_message' %}">Send New Message</a>
     </div>

@@ -2,14 +2,13 @@ from django.contrib import admin
 from .models import Message, Notification, MessageHistory
 
 class MessageHistoryInline(admin.TabularInline):
-    """Inline admin for message history"""
     model = MessageHistory
     extra = 0
     readonly_fields = ['edited_by', 'edited_at', 'old_content']
     can_delete = False
     
     def has_add_permission(self, request, obj=None):
-        return False  # Prevent adding history manually
+        return False
 
 @admin.register(Message)
 class MessageAdmin(admin.ModelAdmin):
@@ -46,4 +45,4 @@ class MessageHistoryAdmin(admin.ModelAdmin):
     old_content_preview.short_description = 'Old Content'
     
     def has_add_permission(self, request):
-        return False  # Prevent manual addition of history
+        return False

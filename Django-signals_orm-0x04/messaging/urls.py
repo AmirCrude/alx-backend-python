@@ -18,4 +18,7 @@ urlpatterns = [
     path('mark-read/', views.mark_as_read, name='mark_as_read'),
     path('mark-read/<int:message_id>/', views.mark_as_read, name='mark_as_read_single'),
     path('summary/', views.inbox_summary, name='inbox_summary'),
+    # Cache test URLs
+    path('cache-test/', views.cache_test, name='cache_test'),
+    path('clear-cache/', views.clear_cache_test, name='clear_cache_test'),
 ]

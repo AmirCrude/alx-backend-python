@@ -1,0 +1,26 @@
+﻿<!DOCTYPE html>
+<html>
+  <head>
+    <title>Cache Test</title>
+  </head>
+  <body>
+    <h1>Cache Test Page</h1>
+
+    <div style="background: #f0f0f0; padding: 15px; margin: 10px 0">
+      <h3>Cache Information:</h3>
+      <p><strong>Message Count:</strong> {{ message_count }}</p>
+      <p><strong>Data Source:</strong> {{ cache_source }}</p>
+      <p><strong>Cache Key:</strong> {{ cache_key }}</p>
+      <p><strong>Page Generated:</strong> {{ current_time }}</p>
+    </div>
+
+    <p>
+      Refresh the page to see if the count comes from cache or is recalculated.
+    </p>
+
+    <div>
+      <a href="{% url 'clear_cache_test' %}">Clear Cache</a> |
+      <a href="{% url 'inbox' %}">Back to Inbox</a>
+    </div>
+  </body>
+</html>
