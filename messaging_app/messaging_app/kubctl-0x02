@@ -1,0 +1,67 @@
+#!/bin/bash
+
+echo "=============================================="
+echo "Blue-Green Deployment Script"
+echo "=============================================="
+
+echo ""
+echo "1. Deploying Blue version (current)..."
+kubectl apply -f blue_deployment.yaml
+
+echo ""
+echo "2. Deploying Green version (new)..."
+kubectl apply -f green_deployment.yaml
+
+echo ""
+echo "3. Deploying Service..."
+kubectl apply -f kubeservice.yaml
+
+echo ""
+echo "4. Waiting for deployments to be ready..."
+sleep 20
+
+echo ""
+echo "5. Checking deployment status..."
+echo "Blue deployment (version 1.0):"
+kubectl get deployment django-messaging-app -o wide
+echo ""
+echo "Green deployment (version 2.0):"
+kubectl get deployment django-messaging-app-green -o wide
+
+echo ""
+echo "6. Checking pods..."
+echo "Blue pods:"
+kubectl get pods -l version=1.0
+echo ""
+echo "Green pods:"
+kubectl get pods -l version=2.0
+
+echo ""
+echo "7. Checking for errors in Green deployment..."
+GREEN_POD=$(kubectl get pods -l version=2.0 -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+
+if [ -n "$GREEN_POD" ]; then
+    echo "Green pod found: $GREEN_POD"
+    echo "Recent logs from green pod:"
+    kubectl logs $GREEN_POD --tail=20
+else
+    echo "No green pods found. Checking events..."
+    kubectl describe deployment django-messaging-app-green | grep -A10 "Events:"
+fi
+
+echo ""
+echo "8. Current service routing:"
+kubectl describe service django-messaging-active | grep -A5 "Selector:"
+
+echo ""
+echo "9. To switch traffic from Blue to Green, run:"
+echo "   kubectl patch service django-messaging-active -p '{\"spec\":{\"selector\":{\"version\":\"2.0\"}}}'"
+echo ""
+echo "10. To switch back to Blue:"
+echo "    kubectl patch service django-messaging-active -p '{\"spec\":{\"selector\":{\"version\":\"1.0\"}}}'"
+
+echo ""
+echo "=============================================="
+echo "Blue-Green deployment ready!"
+echo "Service currently routing to: Blue (version 1.0)"
+echo "=============================================="
