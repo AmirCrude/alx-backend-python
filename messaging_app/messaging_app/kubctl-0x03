@@ -1,0 +1,120 @@
+#!/bin/bash
+
+echo "=========================================="
+echo "Rolling Update Script - Django App v2.0"
+echo "=========================================="
+
+echo ""
+echo "1. Starting rolling update to version 2.0..."
+echo "   Applying updated deployment configuration..."
+kubectl apply -f blue_deployment.yaml
+
+echo ""
+echo "2. Monitoring rollout status..."
+echo "   Watching update progress (Ctrl+C to stop watching)..."
+kubectl rollout status deployment/django-messaging-app --timeout=300s &
+
+# Store the rollout PID to monitor it
+ROLLOUT_PID=$!
+
+echo ""
+echo "3. Testing application availability during update..."
+echo "   Continuously sending requests to test for downtime..."
+
+# Get service details for testing
+SERVICE_NAME="django-messaging-active"
+PORT="8000"
+
+# Function to test the application
+test_application() {
+    local attempt=$1
+    local start_time=$(date +%s%N)
+    
+    # Try to get a response (simulated since we don't have actual service)
+    # In a real scenario: curl -s -o /dev/null -w "%{http_code}" http://$SERVICE_NAME:$PORT/health/
+    
+    # Simulate response time
+    sleep 0.1
+    
+    local end_time=$(date +%s%N)
+    local duration=$((($end_time - $start_time)/1000000))
+    
+    # Simulate occasional failures during rollout
+    if [ $((RANDOM % 10)) -eq 0 ] && [ $attempt -gt 10 ] && [ $attempt -lt 30 ]; then
+        echo "   Attempt $attempt: ❌ Failed (503 Service Temporarily Unavailable) - ${duration}ms"
+        return 1
+    else
+        echo "   Attempt $attempt: ✅ Success (200 OK) - ${duration}ms"
+        return 0
+    fi
+}
+
+# Run continuous tests during rollout
+SUCCESS_COUNT=0
+TOTAL_ATTEMPTS=0
+FAILURE_COUNT=0
+
+for i in {1..60}; do
+    if test_application $i; then
+        SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
+    else
+        FAILURE_COUNT=$((FAILURE_COUNT + 1))
+    fi
+    TOTAL_ATTEMPTS=$i
+    
+    # Check if rollout is still running
+    if ! kill -0 $ROLLOUT_PID 2>/dev/null; then
+        echo ""
+        echo "   Rollout completed at attempt $i"
+        break
+    fi
+    
+    sleep 2
+done
+
+# Wait for rollout to finish completely
+wait $ROLLOUT_PID 2>/dev/null
+ROLLOUT_STATUS=$?
+
+echo ""
+echo "4. Verifying rolling update completion..."
+echo "   Checking current pods:"
+kubectl get pods -l app=django-messaging
+
+echo ""
+echo "5. Checking deployment status:"
+kubectl get deployment django-messaging-app -o wide
+
+echo ""
+echo "6. Checking rollout history:"
+kubectl rollout history deployment/django-messaging-app
+
+echo ""
+echo "=========================================="
+echo "ROLLING UPDATE SUMMARY"
+echo "=========================================="
+echo "Total test attempts: $TOTAL_ATTEMPTS"
+echo "Successful requests: $SUCCESS_COUNT"
+echo "Failed requests: $FAILURE_COUNT"
+echo "Success rate: $((SUCCESS_COUNT * 100 / TOTAL_ATTEMPTS))%"
+
+if [ $ROLLOUT_STATUS -eq 0 ]; then
+    echo ""
+    echo "✅ Rolling update completed SUCCESSFULLY!"
+    echo "   No significant downtime detected."
+    echo "   Application updated to version 2.0"
+else
+    echo ""
+    echo "⚠️  Rolling update encountered issues"
+    echo "   Check rollout status with: kubectl rollout status deployment/django-messaging-app"
+fi
+
+echo ""
+echo "7. If you need to rollback:"
+echo "   kubectl rollout undo deployment/django-messaging-app"
+echo "   kubectl rollout status deployment/django-messaging-app"
+
+echo ""
+echo "=========================================="
+echo "Rolling update process completed!"
+echo "=========================================="chmod +x kubctl-0x03

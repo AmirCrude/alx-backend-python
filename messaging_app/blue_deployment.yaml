@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
       - name: django-app
-        image: django:4.2
+        image: django:4.2.1
         ports:
         - containerPort: 8000
         env:
