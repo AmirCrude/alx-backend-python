@@ -1,0 +1,45 @@
+#!/bin/bash
+
+# Function to check if a command exists
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
+}
+
+echo "Setting up Kubernetes cluster with K3s..."
+
+# Check if K3s is already installed
+if ! command_exists k3s; then
+    echo "Installing K3s (lightweight Kubernetes)..."
+    curl -sfL https://get.k3s.io | sh -
+else
+    echo "K3s is already installed."
+fi
+
+# Wait for K3s to start
+echo "Waiting for K3s to start..."
+sleep 30
+
+# Set up kubectl to use K3s
+export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+sudo chmod 644 /etc/rancher/k3s/k3s.yaml
+
+echo ""
+echo "Verifying cluster status..."
+kubectl cluster-info
+
+echo ""
+echo "Checking node status..."
+kubectl get nodes
+
+echo ""
+echo "Retrieving all pods in all namespaces..."
+kubectl get pods --all-namespaces
+
+echo ""
+echo "Checking K3s service status..."
+sudo systemctl status k3s --no-pager
+
+echo ""
+echo "✅ Kubernetes cluster is ready with K3s!"
+echo "To use kubectl in new terminals, run:"
+echo "export KUBECONFIG=/etc/rancher/k3s/k3s.yaml"KO
