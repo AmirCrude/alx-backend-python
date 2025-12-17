@@ -1,0 +1,20 @@
+# Install Nginx Ingress Controller
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.8.2/deploy/static/provider/cloud/deploy.yaml
+
+# Wait for Ingress controller to be ready
+kubectl wait --namespace ingress-nginx \
+  --for=condition=ready pod \
+  --selector=app.kubernetes.io/component=controller \
+  --timeout=120s
+
+# Apply the Ingress resource
+kubectl apply -f ingress.yaml
+
+# Verify Ingress is created
+kubectl get ingress
+
+# Check Ingress controller pods
+kubectl get pods -n ingress-nginx
+
+# Get Ingress external IP (if using cloud provider or with proper setup)
+# kubectl get services -n ingress-nginx
