@@ -5,7 +5,10 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
-echo "Setting up Kubernetes cluster with K3s..."
+echo "Starting Minikube cluster..."
+minikube start
+
+echo "Setting up Kubernetes cluster..."
 
 # Check if K3s is already installed
 if ! command_exists k3s; then
@@ -40,6 +43,6 @@ echo "Checking K3s service status..."
 sudo systemctl status k3s --no-pager
 
 echo ""
-echo "✅ Kubernetes cluster is ready with K3s!"
+echo "Kubernetes cluster is ready!"
 echo "To use kubectl in new terminals, run:"
-echo "export KUBECONFIG=/etc/rancher/k3s/k3s.yaml"KO
+echo "export KUBECONFIG=/etc/rancher/k3s/k3s.yaml"
